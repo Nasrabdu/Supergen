@@ -1,16 +1,14 @@
 name: Telegram Watcher (Self-Hosted)
 
 on:
-  workflow_dispatch: {}      # تشغيل يدوي من Actions
+  workflow_dispatch: {}        # تشغيل يدوي من تبويب Actions
   schedule:
-    - cron: "0 0 * * *"     # إعادة تشغيل يومية اختيارية للثبات (يمكن حذفها)
+    - cron: "0 0 * * *"       # إعادة تشغيل يومية اختيارية (يمكن حذفها)
 
 jobs:
   run:
-    # هذا الجوب يعمل على الـ VPS الذي سجّلته كـ Self-Hosted Runner
-    runs-on: self-hosted
-    # على الـ Self-Hosted يمكنك تشغيل الجوب حتى 5 أيام (نضع 5 أيام تقريبًا)
-    timeout-minutes: 7190    # أقل قليلًا من 7200 دقيقة (5 أيام)
+    runs-on: self-hosted       # يشغَّل على الـ VPS (Self-Hosted Runner)
+    timeout-minutes: 7190      # ≈ خمسة أيام (الحد الأقصى 7200)
 
     permissions:
       contents: read
@@ -25,19 +23,24 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
+        shell: bash
         run: |
+          set -e
           python -m pip install -U pip
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           else
-            pip install telethon==1.34.0 requests>=2.31.0
+            pip install "telethon==1.34.0" "requests>=2.31.0"
           fi
 
       - name: Materialize secrets to files
+        shell: bash
         run: |
-          # نكتب الجلسات المرمّزة وقائمة المستقبلين إلى ملفات محلية
+          set -e
+          # كتابة أسرار الجلسات والمستلمين إلى ملفات محلية بصيغة JSON
           printf '%s' '${{ secrets.SESSIONS_JSON }}' > sessions.json
           printf '%s' '${{ secrets.ALLOWED_IDS_JSON }}' > allowed_ids.json
+          ls -l sessions.json allowed_ids.json
 
       - name: Run Telegram watcher
         env:
@@ -47,5 +50,7 @@ jobs:
           SESS_FILE:           "sessions.json"
           ALLOWED_IDS_FILE:    "allowed_ids.json"
           DB_PATH:             "seen.db"
+        shell: bash
         run: |
+          set -e
           python telegram_watcher.py
