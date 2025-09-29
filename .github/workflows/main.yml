@@ -1,19 +1,55 @@
-- name: Materialize secrets to files
+name: Telegram Watcher (Self-Hosted)
+
+on:
+  workflow_dispatch: {}        # تشغيل يدوي من تبويب Actions
+  schedule:
+    - cron: "0 0 * * *"       # إعادة تشغيل يومية اختيارية (يمكن حذفها)
+
+jobs:
+  run:
+    runs-on: self-hosted       # يعمل على الـ VPS (Self-Hosted Runner)
+    timeout-minutes: 7190      # ≈ خمسة أيام (الحد الأقصى 7200)
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
         shell: bash
         run: |
           set -e
+          python -m pip install -U pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            pip install "telethon==1.34.0" "requests>=2.31.0"
+          fi
+
+      - name: Materialize secrets to files
+        shell: bash
+        run: |
+          set -e
+          # كتابة قيم الـsecrets إلى ملفات محلية
           printf '%s' '${{ secrets.SESSIONS_JSON }}'     > sessions.json
           printf '%s' '${{ secrets.ALLOWED_IDS_JSON }}' > allowed_ids.json
-          # فحوصات سريعة
+          # فحوصات بسيطة للتأكد أنها غير فارغة
           test -s sessions.json     || (echo "SESSIONS_JSON فارغ!" && exit 1)
           test -s allowed_ids.json  || (echo "ALLOWED_IDS_JSON فارغ!" && exit 1)
-          echo "Files created:"; ls -l sessions.json allowed_ids.json
+          ls -l sessions.json allowed_ids.json
 
       - name: Run Telegram watcher
         env:
-          TELEGRAM_API_ID:     ${{ secrets.API_ID }}          # <-- هنا التغيير
-          TELEGRAM_API_HASH:   ${{ secrets.API_HASH }}        # <-- هنا التغيير
-          TELEGRAM_BOT_TOKEN:  ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_API_ID:     ${{ secrets.API_ID }}             # مطابق لاسم السر في صفحتك
+          TELEGRAM_API_HASH:   ${{ secrets.API_HASH }}           # مطابق لاسم السر في صفحتك
+          TELEGRAM_BOT_TOKEN:  ${{ secrets.TELEGRAM_BOT_TOKEN }} # مطابق لاسم السر في صفحتك
           SESS_FILE:           "sessions.json"
           ALLOWED_IDS_FILE:    "allowed_ids.json"
           DB_PATH:             "seen.db"
